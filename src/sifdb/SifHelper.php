@@ -13,6 +13,10 @@ class SifHelper
 
     static private $strDeletedContent = '----';
 
+    private $cypherKey = '';
+    private $cypherAlg = '';
+    private $cypher = false;
+
     static public function getPath($path = '')
     {
         return str_replace(['/', '//', '\\', '\\\\', '/\\'], DIRECTORY_SEPARATOR, $path);
@@ -28,80 +32,47 @@ class SifHelper
         return !is_dir($path) ? mkdir(self::getPath($path), 0755, true) : true;
     }
 
-    static private function getSalt()
+    function __construct($cypherKey = '', $cypherAlg = '', $cypherKeySchema = null)
     {
-        return substr( md5( str_shuffle(self::$saltSymbols) ), 0, rand(self::$saltLengthMin, self::$saltLengthMax));
+        if (!empty($cypherKey) || !empty($cypherAlg)) {
+            $this->cypherAlg = $cypherAlg;
+            $this->cypherKey = $this->hashKey($cypherKey, $cypherKeySchema);
+            $this->cypher = true;
+        }
     }
 
-    static private function encrypt($data = [], $method = '', $key = '')
-    {
-        $salt = self::getSalt();
-        $iv = openssl_random_pseudo_bytes( openssl_cipher_iv_length($method) );
-        return base64_encode(
-            strlen($salt) . $salt . $iv .
-            openssl_encrypt(
-                serialize($data),
-                $method,
-                $salt . $key,
-                OPENSSL_RAW_DATA,
-                $iv
-            )
-        );
-    }
-
-    static private function decrypt($data = '', $method = '', $key = '')
-    {
-        $data = base64_decode($data);
-        $saltLength = intval(substr($data, 0, 2));
-        $ivLength = openssl_cipher_iv_length($method);
-        return unserialize(
-            openssl_decrypt(
-                substr($data, 2 + $saltLength + $ivLength, strlen($data)),
-                $method,
-                substr($data,2, $saltLength) . $key,
-                OPENSSL_RAW_DATA,
-                substr($data, 2 + $saltLength, $ivLength)
-            )
-        );
-    }
-
-    static private function strIsDeleted($data = '')
-    {
-        return empty($data) || $data == self::$strDeletedContent;
-    }
-
-    static public function fileStrRead($path = '', $decrypt = false, $method = '', $key = '')
+    public function fileStrRead($path = '')
     {
         $handle = fopen($path, "r");
         while(!feof($handle)) {
             $data = trim(fgets($handle));
-            if (!self::strIsDeleted($data))
-                yield ($decrypt && !empty($method) && !empty($key) ?
-                    self::decrypt($data, $method, $key) :
+            if (!$this->strIsDeleted($data))
+                yield ($this->cypher ?
+                    $this->decrypt($data) :
                     $data);
         }
         fclose($handle);
     }
 
-    static public function fileStrCount($path = '')
+    public function fileStrCount($path = '')
     {
-        return iterator_count(self::fileStrRead());
+        return iterator_count($this->fileStrRead($path));
     }
 
-    static public function fileStrFind($path = '', $position, $decrypt = false, $method = '', $key = '')
+    public function fileStrFind($path = '', $position)
     {
         $handle = fopen($path, "r");
         $data = fgets($handle, fseek($handle, $position));
         fclose($handle);
-        if ($data && !self::strIsDeleted($data)) {
-            return ($decrypt && !empty($method) && !empty($key) ?
-                self::decrypt($data, $method, $key) :
+        if ($data && !$this->strIsDeleted($data)) {
+            return ($this->cypher ?
+                $this->decrypt($data) :
                 $data);
         }
         return false;
     }
 
-    static public function fileStrInsert($path = '', $data = '', $position, $encrypt = false, $method = '', $key = '')
+    public function fileStrInsert($path = '', $data = '', $position)
     {
         $temp = fopen('php://temp', "rw+");
         $file = fopen($path, 'r+b');
@@ -112,7 +83,7 @@ class SifHelper
         fseek($file, $position);
         fwrite(
             $file,
-            $encrypt && !empty($method) && !empty($key) ? self::encrypt($data, $method, $key) : $data
+            ($this->cypher ? $this->encrypt($data) : $data) . PHP_EOL
         );
 
         rewind($temp);
@@ -122,19 +93,80 @@ class SifHelper
         fclose($file);
     }
 
-    static public function fileStrAppend($path = '', $data = '', $encrypt = false, $method = '', $key = '')
+    public function fileStrAppend($path = '', $data = '')
     {
         $file = fopen($path, 'a');
         fwrite(
             $file,
-            ($encrypt && !empty($method) && !empty($key) ? self::encrypt($data, $method, $key) : $data) . PHP_EOL
+            ($this->cypher ? $this->encrypt($data) : $data) . PHP_EOL
         );
         fclose($file);
     }
 
-    static public function fileStrDelete($path = '', $position)
+    public function fileStrDelete($path = '', $position)
     {
-        self::fileStrInsert($path, self::$strDeletedContent, $position);
+        $this->fileStrInsert($path, self::$strDeletedContent, $position);
+    }
+
+    static private function hashKey($key = '', $schema = [0, 2, 5, 1, 4, 3])
+    {
+        $keyLength = strlen($key);
+        $keyArr = [
+            md5(substr($key, 0, intval($keyLength * 0.5))),
+            md5(substr($key, 0, intval($keyLength * 0.25))),
+            md5(substr($key, intval($keyLength * 0.25), intval($keyLength * 0.5))),
+            md5(substr($key, intval($keyLength * 0.5), intval($keyLength * 0.75))),
+            md5(substr($key, intval($keyLength * 0.75), $keyLength)),
+            md5(substr($key, intval($keyLength * 0.5), $keyLength)),
+        ];
+        $keyStr = '';
+        for ($i = 0; $i < 32; $i++) for ($j = 0; $j < 6; $j++) $keyStr .= $keyArr[ $schema[ $j ] ][ $i ];
+        return $keyStr;
+    }
+
+    private function getSalt($binary = false)
+    {
+        if ($binary)
+            return substr( md5( openssl_random_pseudo_bytes(32) ), 0, rand(self::$saltLengthMin, self::$saltLengthMax));
+        else
+            return substr( md5( str_shuffle(self::$saltSymbols) ), 0, rand(self::$saltLengthMin, self::$saltLengthMax));
+    }
+
+    private function encrypt($data = [])
+    {
+        $salt = $this->getSalt();
+        $iv = openssl_random_pseudo_bytes( openssl_cipher_iv_length($this->cypherAlg) );
+        return base64_encode(
+            strlen($salt) . $salt . $iv .
+            openssl_encrypt(
+                serialize($data),
+                $this->cypherAlg,
+                $salt . $this->cypherKey,
+                OPENSSL_RAW_DATA,
+                $iv
+            )
+        );
+    }
+
+    private function decrypt($data = '')
+    {
+        $data = base64_decode($data);
+        $saltLength = intval(substr($data, 0, 2));
+        $ivLength = openssl_cipher_iv_length($this->cypherAlg);
+        return unserialize(
+            openssl_decrypt(
+                substr($data, 2 + $saltLength + $ivLength, strlen($data)),
+                $this->cypherAlg,
+                substr($data,2, $saltLength) . $this->cypherKey,
+                OPENSSL_RAW_DATA,
+                substr($data, 2 + $saltLength, $ivLength)
+            )
+        );
+    }
+
+    private function strIsDeleted($data = '')
+    {
+        return empty($data) || (string)$data === self::$strDeletedContent;
     }
 
 }

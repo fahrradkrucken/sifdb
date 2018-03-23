@@ -2,7 +2,7 @@
 
 namespace sifdb;
 
-use sifdb\query\SifQuery;
+use sifdb\query\SifQueryFind;
 
 class SifDB
 {
@@ -79,10 +79,10 @@ class SifDB
 
     /**
      * @param string $collectionName
-     * @return SifQuery
+     * @return SifQueryFind
      */
     public function collection($collectionName = '')
     {
-        return (new SifQuery($collectionName, $this->storageDirCollections));
+        return (new SifQueryFind($collectionName, $this->storageDirCollections));
     }
 }
