@@ -8,6 +8,8 @@ use sifdb\SifHelper;
 
 abstract class SifAbstractQuery
 {
+    use SifComparisonTrait;
+
     protected $collectionName = '';
     protected $collectionDir = '';
     protected $collectionChunkSize = 50;
@@ -36,12 +38,5 @@ abstract class SifAbstractQuery
 
         if (!SifHelper::mkDir($this->collectionDir))
             throw new SifDBException("Cannot create directory {$this->collectionDir}", SifDBException::CODE_FS_ERROR);
-    }
-
-    protected function conditionsRight($conditions = [], $data = [])
-    {
-        for ($i = 0; $i < count($conditions); $i++) {
-
-        }
     }
 }
