@@ -5,6 +5,8 @@ namespace sifdb;
 
 class SifHelper
 {
+    const KEY_SCHEMA_DEFAULT = [0, 2, 5, 1, 4, 3];
+
     static private $unresolvedSymbols = ['-',' ',',',':','.',';','\\','/','*','+','=','(',')','&','?','<','>','%','$','#','@','!'];
 
     static private $saltLengthMin = 10;
@@ -61,9 +63,10 @@ class SifHelper
 
     public function fileStrFind($path = '', $position)
     {
-        $handle = fopen($path, "r");
-        $data = fgets($handle, fseek($handle, $position));
-        fclose($handle);
+        $file = new \SplFileObject($path, 'r');
+        $file->seek($position);
+        $data = $file->current();
+        $file = null;
         if ($data && !$this->strIsDeleted($data)) {
             return ($this->cypher ?
                 $this->decrypt($data) :
@@ -108,7 +111,7 @@ class SifHelper
         $this->fileStrInsert($path, self::$strDeletedContent, $position);
     }
 
-    static private function hashKey($key = '', $schema = [0, 2, 5, 1, 4, 3])
+    static private function hashKey($key = '', $schema = self::KEY_SCHEMA_DEFAULT)
     {
         $keyLength = strlen($key);
         $keyArr = [

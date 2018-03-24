@@ -2,17 +2,23 @@
 
 namespace sifdb;
 
+use sifdb\query\SifQuery;
 use sifdb\query\SifQueryFind;
 
 class SifDB
 {
+    const STORAGE_NAME_DEFAULT = 'dafault';
+    const COLL_EXT = '.sifdata';
+    const COLL_EXT_SCHEMA = '.sifschema';
+    const COLL_FILENAME = 'chunk_';
+
     private $storageDir = '';
     private $storageDirFiles = '';
     private $storageDirCollections = '';
     private $storageKey = '';
     private $storageAlg = '';
 
-    private $storageExtColections = 'sifdata';
+    private $handler = null;
 
     static private $instances = [];
     private function __clone() {}
@@ -56,33 +62,29 @@ class SifDB
         if (!SifHelper::mkDir($this->storageDirFiles))
             throw new SifDBException("Cannot create directory {$this->storageDirFiles}",
                 SifDBException::CODE_FS_ERROR);
-    }
 
-    function __toString() { return 'Stringify this class not allowed'; }
+        $this->handler = new SifHelper($this->storageKey, $this->storageAlg, $config['key_schema']);
+    }
 
     /**
      * @param array $config
      * @param string $instanceName
      * @return SifDB
      */
-    static public function gi($config = [], $instanceName = 'default') {
+    static public function gi($instanceName = self::STORAGE_NAME_DEFAULT, $config = [])
+    {
         return empty($instances[$instanceName]) ? (new self($config)) : $instances[$instanceName];
     }
 
-    /**
-     * @return bool TRUE if this instance uses cypher to store data
-     */
-    private function useCypher()
+    public function collection($collectionName = '', $collectionChunkSize = null)
     {
-        return !empty($this->storageKey) && !empty($this->storageAlg);
+        return (new SifQuery($collectionName, $this->storageDirCollections, $collectionChunkSize));
     }
 
-    /**
-     * @param string $collectionName
-     * @return SifQueryFind
-     */
-    public function collection($collectionName = '')
+    public function handler()
     {
-        return (new SifQueryFind($collectionName, $this->storageDirCollections));
+        return $this->handler;
     }
+
+
 }
