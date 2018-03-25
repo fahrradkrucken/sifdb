@@ -7,7 +7,7 @@ use sifdb\SifDB;
 
 class SifQuery extends SifAbstractQuery
 {
-    public function find($condition = [])
+    public function find($condition = [], $limit = 0, $offset = 0)
     {
         $this->result = [];
         $fileN = 1;
@@ -20,35 +20,50 @@ class SifQuery extends SifAbstractQuery
             $fileName = $this->collectionDir . SifDB::COLL_FILENAME . $fileN . SifDB::COLL_EXT;
         }
 
+        if (!empty($this->result)) {
+            $this->result = array_slice(
+                $this->result,
+                (!empty($offset) && is_int($offset) && $offset < count($this->result)) ?
+                    $offset :
+                    0,
+                (!empty($limit) && is_int($limit) && $limit > $offset) ?
+                    $limit :
+                    count($this->result)
+            );
+        }
+
+
         return $this;
     }
 
-    public function findOne($_id = null, $condition = [])
+    public function findOne($condition = [])
     {
-        $this->result = null;
+        $this->result = [];
 
-        $_id = intval($_id);
-        $fileN = 1;
-        $strN = $_id - 1;
+        if (!empty($condition)) {
+            $fileN = 1;
 
-        if (!empty($_id)) {
+            if (is_int($condition) || is_string($condition)) {
 
-            if ($strN > $this->collectionChunkSize) {
-                $strN = ($_id % $this->collectionChunkSize) - 1;
-                $fileN = intval(floor($_id / $this->collectionChunkSize));
-            }
-            $fileName = $this->collectionDir . SifDB::COLL_FILENAME . $fileN . SifDB::COLL_EXT;
-            if (file_exists($fileName) && is_file($fileName)) $this->result = $this->storage->fileStrFind($fileName, $strN);
-
-        } elseif (!empty($condition)) {
-
-            $fileName = $this->collectionDir . SifDB::COLL_FILENAME . $fileN . SifDB::COLL_EXT;
-            while (file_exists($fileName)) {
-                $fileStrings = $this->storage->fileStrRead($fileName);
-                foreach ($fileStrings as $number => $data) if ($this->conditionsRight($condition, $data)) $this->result = $data;
-                if ($this->result) break;
-                $fileN++;
+                $_id = intval($condition);
+                $strN = $_id - 1;
+                if ($strN > $this->collectionChunkSize) {
+                    $strN = ($_id % $this->collectionChunkSize) - 1;
+                    $fileN = intval(floor($_id / $this->collectionChunkSize));
+                }
                 $fileName = $this->collectionDir . SifDB::COLL_FILENAME . $fileN . SifDB::COLL_EXT;
+                if (file_exists($fileName) && is_file($fileName)) $this->result = $this->storage->fileStrFind($fileName, $strN);
+
+            } elseif (is_array($condition)) {
+
+                $fileName = $this->collectionDir . SifDB::COLL_FILENAME . $fileN . SifDB::COLL_EXT;
+                while (file_exists($fileName)) {
+                    $fileStrings = $this->storage->fileStrRead($fileName);
+                    foreach ($fileStrings as $number => $data) if ($this->conditionsRight($condition, $data)) $this->result = $data;
+                    if ($this->result) break;
+                    $fileN++;
+                    $fileName = $this->collectionDir . SifDB::COLL_FILENAME . $fileN . SifDB::COLL_EXT;
+                }
             }
         }
 
@@ -164,6 +179,58 @@ class SifQuery extends SifAbstractQuery
                 $this->storage->fileStrAppendMany($fileName, $dataArrChunks[$i]);
                 $fileN++;
                 $fileName = $this->collectionDir . SifDB::COLL_FILENAME . $fileN . SifDB::COLL_EXT;
+            }
+        }
+    }
+
+    public function update($conditions = [], $data = [])
+    {
+        if (is_int($conditions)) {
+
+            $_id = $conditions;
+            $this->findOne($_id);
+            $strN = ($_id % $this->collectionChunkSize) - 1;
+            $fileN = intval(floor($_id / $this->collectionChunkSize));
+            $fileName = $this->collectionDir . SifDB::COLL_FILENAME . $fileN . SifDB::COLL_EXT;
+            $updateData = $this->result;
+            foreach ($updateData as $name => $value) if (array_key_exists($name, $updateData)) $updateData[$name] = $data[$name];
+            $this->storage->fileStrInsert($fileName, $updateData, $strN);
+
+        } elseif (is_array($conditions)) {
+
+            $this->find($conditions);
+            for ($i = 0; $i < count($this->result); $i++) {
+                $_id = $this->result[$i]['_id'];
+                $strN = ($_id % $this->collectionChunkSize) - 1;
+                $fileN = intval(floor($_id / $this->collectionChunkSize));
+                $fileName = $this->collectionDir . SifDB::COLL_FILENAME . $fileN . SifDB::COLL_EXT;
+                $updateData = $this->result[$i];
+                foreach ($updateData as $name => $value) if (array_key_exists($name, $updateData)) $updateData[$name] = $data[$name];
+                $this->storage->fileStrInsert($fileName, $updateData, $strN);
+            }
+        }
+    }
+
+    public function delete($conditions = [])
+    {
+        if (is_int($conditions)) {
+
+            $_id = $conditions;
+            $this->findOne($_id);
+            $strN = ($_id % $this->collectionChunkSize) - 1;
+            $fileN = intval(floor($_id / $this->collectionChunkSize));
+            $fileName = $this->collectionDir . SifDB::COLL_FILENAME . $fileN . SifDB::COLL_EXT;
+            $this->storage->fileStrDelete($fileName, $strN);
+
+        } elseif (is_array($conditions)) {
+
+            $this->find($conditions);
+            for ($i = 0; $i < count($this->result); $i++) {
+                $_id = $this->result[$i]['_id'];
+                $strN = ($_id % $this->collectionChunkSize) - 1;
+                $fileN = intval(floor($_id / $this->collectionChunkSize));
+                $fileName = $this->collectionDir . SifDB::COLL_FILENAME . $fileN . SifDB::COLL_EXT;
+                $this->storage->fileStrDelete($fileName, $strN);
             }
         }
     }
