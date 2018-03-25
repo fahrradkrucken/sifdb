@@ -1,10 +1,4 @@
 <?php
-/**
- * Created by PhpStorm.
- * User: Sebastian
- * Date: 24.03.2018
- * Time: 21:30
- */
 
 namespace sifdb\query;
 
@@ -41,13 +35,6 @@ trait SifComparisonTrait
         '<=' => 'LessThanEquals',
         'lte' => 'LessThanEquals',
 
-        'like' => 'Like',
-        '%' => 'Like',
-
-        'nlike' => 'NotLike',
-        '!like' => 'NotLike',
-        '!%' => 'NotLike',
-
         'regex' => 'Regex',
         'r' => 'Regex',
 
@@ -64,10 +51,10 @@ trait SifComparisonTrait
     protected function conditionsRight($conditions = [], $data = [])
     {
         $fulfilled = $conditions;
-        for ($i = 0; $i < count($conditions); $i++) {
+        for ($i = 0; $i < count($conditions); $i++) { // AND
             if (!is_array($conditions[$i][0])) {
                 $fulfilled[$i] = $this->callCompareFunction($conditions[$i][0], $conditions[$i][1], $conditions[$i][2], $data);
-            } else {
+            } else { // OR
                 for ($j = 0; $j < count($conditions[$i]); $j++) {
                     $fulfilled[$i] = $this->callCompareFunction($conditions[$i][$j][0], $conditions[$i][$j][1], $conditions[$i][$j][2], $data);
                     if ($fulfilled[$i]) break;
@@ -117,13 +104,9 @@ trait SifComparisonTrait
         return $val == $comp;
     }
 
-    protected function compareStrictEquals($val, $comp, $fn) {return $val === $comp;}
+    protected function compareNotEquals($val, $comp, $fn) {return $this->compareEquals($val, $comp, $fn);}
 
-    protected function compareNotEquals($val, $comp, $fn)
-    {
-        if (is_string($val) && is_int($comp)) return strlen($val) != $comp;
-        return $val != $comp;
-    }
+    protected function compareStrictEquals($val, $comp, $fn) {return $val === $comp;}
 
     protected function compareGreaterThan($val, $comp, $fn)
     {
@@ -155,13 +138,21 @@ trait SifComparisonTrait
 
     protected function compareCustom($val, $comp, $fn) {return call_user_func_array($fn, [$val, $comp]);}
 
-    protected function compareIn($val, $comp, $fn) {return in_array($comp, $val);}
+    protected function compareIn($val, $comp, $fn)
+    {
+        if (is_string($comp) && is_string($val)) return mb_strpos($comp, $val) !== FALSE;
+        if (is_string($comp) && is_array($val)) {
+            for ($i = 0; $i < count($val); $i++) if (mb_strpos($comp, $val[$i]) === FALSE) return false;
+            return true;
+        }
+        if (is_array($comp) && is_array($val)) {
+            for ($i = 0; $i < count($val); $i++) if (!in_array($val[$i], $comp)) return false;
+            return true;
+        }
+        return in_array($val, $comp);
+    }
 
-    protected function compareNotIn($val, $comp, $fn) {return !in_array($comp, $val);}
-
-    protected function compareLike($val, $comp, $fn) {return preg_match("/($comp)/", $val) === 1;}
-
-    protected function compareNotLike($val, $comp, $fn) {return preg_match("/($comp)/", $val) === 0;}
+    protected function compareNotIn($val, $comp, $fn) {return !$this->compareIn($val, $comp, $fn);}
 
     protected function compareRegex($val, $comp, $fn) {return preg_match($comp, $val) === 1;}
 }

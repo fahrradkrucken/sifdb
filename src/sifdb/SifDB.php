@@ -86,5 +86,15 @@ class SifDB
         return $this->handler;
     }
 
+    public function getStorageDir() {return $this->storageDir;}
+
+    public function getStorageDirFiles() {return $this->storageDirFiles;}
+
+    public function getStorageDirCollections() {return $this->storageDirCollections;}
+
+    public function getStorageKey() {return $this->storageKey;}
+
+    public function getStorageAlg() {return $this->storageAlg;}
+
 
 }
