@@ -1,11 +1,22 @@
 <?php
 if (!defined('DIRSEP')) define('DIRSEP', DIRECTORY_SEPARATOR);
-require_once realpath(__DIR__ . '/../vendor/autoload.php');
+//require_once realpath(__DIR__ . '/../vendor/autoload.php');
 
 $memory_used = memory_get_usage();
 
 $original_str = 'Hey Nigga!';
 $key = 'ololoshko';
+
+var_get(array_diff(
+    [
+        'a' => 'b',
+        'b' => 'a',
+    ],
+    [
+        'a' => 'b',
+        'b' => 'a',
+    ]
+));
 
 
 print formatBytes(memory_get_usage() - $memory_used);

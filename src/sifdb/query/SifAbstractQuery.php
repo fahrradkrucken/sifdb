@@ -16,6 +16,8 @@ abstract class SifAbstractQuery
 
     protected $storage = null;
 
+    protected $result = null;
+
     /**
      * SifAbstractQuery constructor.
      * @param string $collectionName
@@ -37,4 +39,6 @@ abstract class SifAbstractQuery
         if (!SifFS::mkDir($this->collectionDir))
             throw new SifDBException("Cannot create directory {$this->collectionDir}", SifDBException::CODE_FS_ERROR);
     }
+
+    public function getResult() {return $this->result;}
 }

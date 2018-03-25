@@ -101,10 +101,12 @@ trait SifComparisonTrait
     protected function compareEquals($val, $comp, $fn)
     {
         if (is_string($val) && is_int($comp)) return strlen($val) == $comp;
+        if (is_array($val) && is_int($comp)) return count($val) == $comp;
+        if (is_array($val) && is_array($comp)) return !boolval(array_diff($val, $comp));
         return $val == $comp;
     }
 
-    protected function compareNotEquals($val, $comp, $fn) {return $this->compareEquals($val, $comp, $fn);}
+    protected function compareNotEquals($val, $comp, $fn) {return !$this->compareEquals($val, $comp, $fn);}
 
     protected function compareStrictEquals($val, $comp, $fn) {return $val === $comp;}
 
@@ -140,9 +142,9 @@ trait SifComparisonTrait
 
     protected function compareIn($val, $comp, $fn)
     {
-        if (is_string($comp) && is_string($val)) return mb_strpos($comp, $val) !== FALSE;
+        if (is_string($comp) && (is_string($val) || is_numeric($val))) return mb_strpos($comp, (string)$val) !== FALSE;
         if (is_string($comp) && is_array($val)) {
-            for ($i = 0; $i < count($val); $i++) if (mb_strpos($comp, $val[$i]) === FALSE) return false;
+            for ($i = 0; $i < count($val); $i++) if (mb_strpos($comp, (string)$val[$i]) === FALSE) return false;
             return true;
         }
         if (is_array($comp) && is_array($val)) {

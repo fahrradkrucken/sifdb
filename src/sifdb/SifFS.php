@@ -99,10 +99,15 @@ class SifFS
     public function fileStrAppend($path = '', $data = '')
     {
         $file = fopen($path, 'a');
-        fwrite(
-            $file,
-            ($this->cypher ? $this->encrypt($data) : $data) . PHP_EOL
-        );
+        fwrite($file, ($this->cypher ? $this->encrypt($data) : $data) . PHP_EOL);
+        fclose($file);
+    }
+
+    public function fileStrAppendMany($path = '', $data = [])
+    {
+        $file = fopen($path, 'a');
+        for ($i = 0; $i < count($data); $i++)
+            fwrite($file, ($this->cypher ? $this->encrypt($data[$i]) : $data[$i]) . PHP_EOL);
         fclose($file);
     }
 
