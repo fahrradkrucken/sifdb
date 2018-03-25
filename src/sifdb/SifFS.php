@@ -3,7 +3,7 @@
 namespace sifdb;
 
 
-class SifHelper
+class SifFS
 {
     const KEY_SCHEMA_DEFAULT = [0, 2, 5, 1, 4, 3];
 

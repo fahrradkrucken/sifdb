@@ -4,7 +4,7 @@ namespace sifdb\query;
 
 use sifdb\SifDB;
 use sifdb\SifDBException;
-use sifdb\SifHelper;
+use sifdb\SifFS;
 
 abstract class SifAbstractQuery
 {
@@ -31,10 +31,10 @@ abstract class SifAbstractQuery
         if (!empty($storage)) $this->storage = SifDB::gi($storage)->handler();
         else throw new SifDBException('$storage required', SifDBException::CODE_WRONG_USAGE);
 
-        $this->collectionName = SifHelper::normalizeName($collectionName);
-        $this->collectionDir = SifHelper::getPath(SifDB::gi($storage)->getStorageDirCollections() . "/{$this->collectionName}/");
+        $this->collectionName = SifFS::normalizeName($collectionName);
+        $this->collectionDir = SifFS::getPath(SifDB::gi($storage)->getStorageDirCollections() . "/{$this->collectionName}/");
 
-        if (!SifHelper::mkDir($this->collectionDir))
+        if (!SifFS::mkDir($this->collectionDir))
             throw new SifDBException("Cannot create directory {$this->collectionDir}", SifDBException::CODE_FS_ERROR);
     }
 }

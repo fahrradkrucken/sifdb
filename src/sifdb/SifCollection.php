@@ -27,10 +27,10 @@ class SifCollection
 
         if (!empty($collectionChunkSize) && is_int($collectionChunkSize))
             $this->collectionChunkSize = $collectionChunkSize;
-        $this->collectionName = SifHelper::normalizeName($collectionName);
-        $this->collectionDir = SifHelper::getPath("{$collectionDir}/{$this->collectionName}/");
+        $this->collectionName = SifFS::normalizeName($collectionName);
+        $this->collectionDir = SifFS::getPath("{$collectionDir}/{$this->collectionName}/");
 
-        if (!SifHelper::mkDir($this->collectionDir))
+        if (!SifFS::mkDir($this->collectionDir))
             throw new SifDBException("Cannot create directory {$this->collectionDir}", SifDBException::CODE_FS_ERROR);
     }
 

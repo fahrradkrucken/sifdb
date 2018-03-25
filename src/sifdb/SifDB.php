@@ -30,17 +30,17 @@ class SifDB
      */
     private function __construct($config = [])
     {
-        $this->storageDir = SifHelper::getPath(
+        $this->storageDir = SifFS::getPath(
             !empty($config['dir']) ?
                 str_replace(['-', ' '], '_', trim($config['dir'])) :
                 $_SERVER['DOCUMENT_ROOT'] . '/sifdb_storage/'
         );
-        $this->storageDirCollections = SifHelper::getPath(
+        $this->storageDirCollections = SifFS::getPath(
             !empty($config['dir_collections']) ?
                 str_replace(['-', ' '], '_', trim($config['dir_collections'])) :
                 $this->storageDir .'collections'
         );
-        $this->storageDirFiles = SifHelper::getPath(
+        $this->storageDirFiles = SifFS::getPath(
             $this->storageDir . (!empty($config['dir_files']) ? $config['dir_files'] : 'files')
         );
         $this->storageKey = !empty($config['key']) ? $config['key'] : '';
@@ -53,17 +53,17 @@ class SifDB
             throw new SifDBException("Cypher alg. {$this->storageAlg} not supported",
                 SifDBException::CODE_CYPHER_ERROR);
 
-        if (!SifHelper::mkDir($this->storageDir))
+        if (!SifFS::mkDir($this->storageDir))
             throw new SifDBException("Cannot create directory {$this->storageDir}",
                 SifDBException::CODE_FS_ERROR);
-        if (!SifHelper::mkDir($this->storageDirCollections))
+        if (!SifFS::mkDir($this->storageDirCollections))
             throw new SifDBException("Cannot create directory {$this->storageDirCollections}",
                 SifDBException::CODE_FS_ERROR);
-        if (!SifHelper::mkDir($this->storageDirFiles))
+        if (!SifFS::mkDir($this->storageDirFiles))
             throw new SifDBException("Cannot create directory {$this->storageDirFiles}",
                 SifDBException::CODE_FS_ERROR);
 
-        $this->handler = new SifHelper($this->storageKey, $this->storageAlg, $config['key_schema']);
+        $this->handler = new SifFS($this->storageKey, $this->storageAlg, $config['key_schema']);
     }
 
     /**
