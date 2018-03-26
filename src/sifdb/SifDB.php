@@ -49,6 +49,9 @@ class SifDB
         if (!empty($this->storageKey) && empty($this->storageAlg))
             throw new SifDBException('You should specify the storage cypher alg. that your system supports',
                 SifDBException::CODE_WRONG_USAGE);
+        if (empty($this->storageKey) && !empty($this->storageAlg))
+            throw new SifDBException('You should specify the storage cypher key if alg. is specified',
+                SifDBException::CODE_WRONG_USAGE);
         if (!in_array($this->storageAlg, openssl_get_cipher_methods(true)))
             throw new SifDBException("Cypher alg. {$this->storageAlg} not supported",
                 SifDBException::CODE_CYPHER_ERROR);
