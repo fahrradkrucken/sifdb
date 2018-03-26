@@ -56,9 +56,21 @@ class SifFS
         fclose($handle);
     }
 
+    public function fileStrReadReal($path = '')
+    {
+        $handle = fopen($path, "r");
+        while(!feof($handle)) yield trim(fgets($handle));
+        fclose($handle);
+    }
+
     public function fileStrCount($path = '')
     {
         return iterator_count($this->fileStrRead($path));
+    }
+
+    public function fileStrCountReal($path = '')
+    {
+        return iterator_count($this->fileStrReadReal($path));
     }
 
     public function fileStrFind($path = '', $position)

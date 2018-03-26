@@ -137,9 +137,13 @@ class SifQuery extends SifAbstractQuery
             $fileN++;
             $fileName = $this->collectionDir . SifDB::COLL_FILENAME . $fileN . SifDB::COLL_EXT;
         } while(file_exists($fileName));
-
-        if ($this->storage->fileStrCount($fileName) == $this->collectionChunkSize)
+        $strCount = $this->storage->fileStrCountReal($fileName);
+        if ($strCount == $this->collectionChunkSize) {
             $fileName = $this->collectionDir . SifDB::COLL_FILENAME . ($fileN + 1) . SifDB::COLL_EXT;
+            $strCount = 0;
+        }
+
+        $data['_id'] = (($fileN - 1) * $this->collectionChunkSize) + $strCount; // handle correct _id
 
         $this->storage->fileStrAppend($fileName, $data);
     }
@@ -153,10 +157,15 @@ class SifQuery extends SifAbstractQuery
             $fileName = $this->collectionDir . SifDB::COLL_FILENAME . $fileN . SifDB::COLL_EXT;
         } while(file_exists($fileName));
 
-        $strCWritten = file_exists($fileName) ? $this->storage->fileStrCount($fileName) : $this->collectionChunkSize;
+        $strCWrittenLast = $this->storage->fileStrCountReal($fileName);
+        $strCWritten = file_exists($fileName) ? $strCWrittenLast : $this->collectionChunkSize;
         $strCChunk = $this->collectionChunkSize;
         $strCCanWrite = $strCChunk - $strCWritten;
         $strCToWrite = count($dataArr);
+
+        // handle correct _id's
+        $start_id = (($fileN - 1) * $strCChunk) + ($strCWrittenLast == $strCWritten ? 0 : $strCWritten);
+        for ($str_i = 0; $str_i < count($dataArr); $str_i++, $start_id++) $dataArr[$str_i]['_id'] = $start_id;
 
         if ($strCCanWrite <= $strCToWrite) { // file (not)exists and can write to 1 file
 
@@ -233,6 +242,11 @@ class SifQuery extends SifAbstractQuery
                 $this->storage->fileStrDelete($fileName, $strN);
             }
         }
+    }
+
+    public function count()
+    {
+//        return !empty($this->result) ? count($this->result) : 0;
     }
 
 }
