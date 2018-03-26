@@ -146,6 +146,8 @@ class SifQuery extends SifAbstractQuery
         $data['_id'] = (($fileN - 1) * $this->collectionChunkSize) + $strCount; // handle correct _id
 
         $this->storage->fileStrAppend($fileName, $data);
+
+        return $data;
     }
 
     public function insertMany($dataArr = [])
