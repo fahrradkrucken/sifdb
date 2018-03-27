@@ -33,7 +33,7 @@ class SifDB
         $this->storageDir = SifFS::getPath(
             !empty($config['dir']) ?
                 str_replace(['-', ' '], '_', trim($config['dir'])) :
-                $_SERVER['DOCUMENT_ROOT'] . '/sifdb_storage/'
+                __DIR__ . '/../../sifdb_storage/'
         );
         $this->storageDirCollections = SifFS::getPath(
             !empty($config['dir_collections']) ?
@@ -43,18 +43,20 @@ class SifDB
         $this->storageDirFiles = SifFS::getPath(
             $this->storageDir . (!empty($config['dir_files']) ? $config['dir_files'] : 'files')
         );
-        $this->storageKey = !empty($config['key']) ? $config['key'] : '';
-        $this->storageAlg = !empty($config['alg']) ? $config['alg'] : 'AES-192-CBC';
+        $this->storageKey = !empty($config['key']) ? $config['key'] : null;
+        $this->storageAlg = !empty($config['alg']) ? $config['alg'] : (!empty($config['key']) ? 'AES-192-CBC' : null);
 
-        if (!empty($this->storageKey) && empty($this->storageAlg))
-            throw new SifDBException('You should specify the storage cypher alg. that your system supports',
-                SifDBException::CODE_WRONG_USAGE);
-        if (empty($this->storageKey) && !empty($this->storageAlg))
-            throw new SifDBException('You should specify the storage cypher key if alg. is specified',
-                SifDBException::CODE_WRONG_USAGE);
-        if (!in_array($this->storageAlg, openssl_get_cipher_methods(true)))
-            throw new SifDBException("Cypher alg. {$this->storageAlg} not supported",
-                SifDBException::CODE_CYPHER_ERROR);
+        if (isset($this->storageKey) || isset($this->storageAlg)) {
+            if (!empty($this->storageKey) && empty($this->storageAlg))
+                throw new SifDBException('You should specify the storage cypher alg. that your system supports',
+                    SifDBException::CODE_WRONG_USAGE);
+            if (empty($this->storageKey) && !empty($this->storageAlg))
+                throw new SifDBException('You should specify the storage cypher key if alg. is specified',
+                    SifDBException::CODE_WRONG_USAGE);
+            if (!in_array($this->storageAlg, openssl_get_cipher_methods(true)))
+                throw new SifDBException("Cypher alg. {$this->storageAlg} not supported",
+                    SifDBException::CODE_CYPHER_ERROR);
+        }
 
         if (!SifFS::mkDir($this->storageDir))
             throw new SifDBException("Cannot create directory {$this->storageDir}",
@@ -66,7 +68,10 @@ class SifDB
             throw new SifDBException("Cannot create directory {$this->storageDirFiles}",
                 SifDBException::CODE_FS_ERROR);
 
-        $this->handler = new SifFS($this->storageKey, $this->storageAlg, $config['key_schema']);
+        $this->handler = new SifFS(
+            $this->storageKey,
+            $this->storageAlg,
+            isset($config['key_schema']) ? $config['key_schema'] : null);
     }
 
     /**
