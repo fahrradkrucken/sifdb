@@ -3,16 +3,22 @@
 namespace sifdb;
 
 use sifdb\query\SifQuery;
+use sifdb\query\SifQueryFind;
 
 class SifDB
 {
+    const STORAGE_NAME_DEFAULT = 'dafault';
+    const COLL_EXT = '.sifdata';
+    const COLL_EXT_SCHEMA = '.sifschema';
+    const COLL_FILENAME = 'chunk_';
+
     private $storageDir = '';
     private $storageDirFiles = '';
     private $storageDirCollections = '';
     private $storageKey = '';
     private $storageAlg = '';
 
-    private $storageExtColections = 'sifdata';
+    private $handler = null;
 
     static private $instances = [];
     private function __clone() {}
@@ -24,65 +30,79 @@ class SifDB
      */
     private function __construct($config = [])
     {
-        $this->storageDir = SifHelper::getPath(
+        $this->storageDir = SifFS::getPath(
             !empty($config['dir']) ?
                 str_replace(['-', ' '], '_', trim($config['dir'])) :
-                $_SERVER['DOCUMENT_ROOT'] . '/sifdb_storage/'
+                __DIR__ . '/../../sifdb_storage/'
         );
-        $this->storageDirCollections = SifHelper::getPath(
+        $this->storageDirCollections = SifFS::getPath(
             !empty($config['dir_collections']) ?
                 str_replace(['-', ' '], '_', trim($config['dir_collections'])) :
                 $this->storageDir .'collections'
         );
-        $this->storageDirFiles = SifHelper::getPath(
+        $this->storageDirFiles = SifFS::getPath(
             $this->storageDir . (!empty($config['dir_files']) ? $config['dir_files'] : 'files')
         );
-        $this->storageKey = !empty($config['key']) ? $config['key'] : '';
-        $this->storageAlg = !empty($config['alg']) ? $config['alg'] : 'AES-192-CBC';
+        $this->storageKey = !empty($config['key']) ? $config['key'] : null;
+        $this->storageAlg = !empty($config['alg']) ? $config['alg'] : (!empty($config['key']) ? 'AES-192-CBC' : null);
 
-        if (!empty($this->storageKey) && empty($this->storageAlg))
-            throw new SifDBException('You should specify the storage cypher alg. that your system supports',
-                SifDBException::CODE_WRONG_USAGE);
-        if (!in_array($this->storageAlg, openssl_get_cipher_methods(true)))
-            throw new SifDBException("Cypher alg. {$this->storageAlg} not supported",
-                SifDBException::CODE_CYPHER_ERROR);
+        if (isset($this->storageKey) || isset($this->storageAlg)) {
+            if (!empty($this->storageKey) && empty($this->storageAlg))
+                throw new SifDBException('You should specify the storage cypher alg. that your system supports',
+                    SifDBException::CODE_WRONG_USAGE);
+            if (empty($this->storageKey) && !empty($this->storageAlg))
+                throw new SifDBException('You should specify the storage cypher key if alg. is specified',
+                    SifDBException::CODE_WRONG_USAGE);
+            if (!in_array($this->storageAlg, openssl_get_cipher_methods(true)))
+                throw new SifDBException("Cypher alg. {$this->storageAlg} not supported",
+                    SifDBException::CODE_CYPHER_ERROR);
+        }
 
-        if (!SifHelper::mkDir($this->storageDir))
+        if (!SifFS::mkDir($this->storageDir))
             throw new SifDBException("Cannot create directory {$this->storageDir}",
                 SifDBException::CODE_FS_ERROR);
-        if (!SifHelper::mkDir($this->storageDirCollections))
+        if (!SifFS::mkDir($this->storageDirCollections))
             throw new SifDBException("Cannot create directory {$this->storageDirCollections}",
                 SifDBException::CODE_FS_ERROR);
-        if (!SifHelper::mkDir($this->storageDirFiles))
+        if (!SifFS::mkDir($this->storageDirFiles))
             throw new SifDBException("Cannot create directory {$this->storageDirFiles}",
                 SifDBException::CODE_FS_ERROR);
-    }
 
-    function __toString() { return 'Stringify this class not allowed'; }
+        $this->handler = new SifFS(
+            $this->storageKey,
+            $this->storageAlg,
+            isset($config['key_schema']) ? $config['key_schema'] : null);
+    }
 
     /**
      * @param array $config
      * @param string $instanceName
      * @return SifDB
      */
-    static public function gi($config = [], $instanceName = 'default') {
+    static public function gi($instanceName = self::STORAGE_NAME_DEFAULT, $config = [])
+    {
         return empty($instances[$instanceName]) ? (new self($config)) : $instances[$instanceName];
     }
 
-    /**
-     * @return bool TRUE if this instance uses cypher to store data
-     */
-    private function useCypher()
+    public function collection($collectionName = '', $collectionChunkSize = null)
     {
-        return !empty($this->storageKey) && !empty($this->storageAlg);
+        return (new SifQuery($collectionName, $this->storageDirCollections, $collectionChunkSize));
     }
 
-    /**
-     * @param string $collectionName
-     * @return SifQuery
-     */
-    public function collection($collectionName = '')
+    public function handler()
     {
-        return (new SifQuery($collectionName, $this->storageDirCollections));
+        return $this->handler;
     }
+
+    public function getStorageDir() {return $this->storageDir;}
+
+    public function getStorageDirFiles() {return $this->storageDirFiles;}
+
+    public function getStorageDirCollections() {return $this->storageDirCollections;}
+
+    public function getStorageKey() {return $this->storageKey;}
+
+    public function getStorageAlg() {return $this->storageAlg;}
+
+
 }
